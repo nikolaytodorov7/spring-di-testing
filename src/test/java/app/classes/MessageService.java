@@ -10,8 +10,8 @@ public class MessageService {
     @Qualifier("textMessage")
     private Message textMessage;
 
-    @Qualifier("videoMessage")
     @Autowired
+    @Qualifier("videoMessage")
     private Message videoMessage;
 
     public Message getTextMessage() {
