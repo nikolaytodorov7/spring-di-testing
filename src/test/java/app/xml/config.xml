@@ -9,6 +9,6 @@
 
     <context:annotation-config/>
     <context:component-scan base-package="app.classes"/>
-    <bean id="A" class="app.classes.A" scope="singleton"/>
-    <bean id="B" class="app.classes.B" scope="singleton"/>
+    <myBean id="A" class="app.classes.A" scope="singleton"/>
+    <myBean id="B" class="app.classes.B" scope="singleton"/>
 </beans>

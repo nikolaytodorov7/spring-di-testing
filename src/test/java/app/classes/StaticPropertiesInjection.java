@@ -11,8 +11,4 @@ public class StaticPropertiesInjection {
     public AutoWiredInjectionTester getAutoWiredInjectionTesterClass() {
         return autoWiredInjectionTesterClass;
     }
-
-    public void setAutoWiredInjectionTesterClass(AutoWiredInjectionTester autoWiredInjectionTesterClass) {
-        StaticPropertiesInjection.autoWiredInjectionTesterClass = autoWiredInjectionTesterClass;
-    }
 }

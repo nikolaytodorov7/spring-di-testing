@@ -2,17 +2,20 @@ package app;
 
 import app.classes.*;
 import app.configs.*;
+import app.contextdep.MyBean;
+import app.contextdep.BeanFactoryPostProcess;
+import app.contextdep.BeanLifeCycle;
+import app.contextdep.BeanPostProcess;
 import app.invalid.ConstructorInjectionPrimitive;
 import app.invalid.ConstructorInjectionTwoAutowired;
 import app.invalid.MessageServiceInvalid;
-import jdk.jfr.Description;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
-import org.springframework.context.support.ClassPathXmlApplicationContext;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -34,80 +37,69 @@ public class DITest {
     }
 
     @Test
-    void xmlTest() {
-        ClassPathXmlApplicationContext context = new ClassPathXmlApplicationContext();
-        context.setConfigLocation("app/xml/config.xml");
-        context.refresh();
-
-        A aClass = context.getBean(A.class);
-        assertNotNull(aClass);
-    }
-
-    @Test
-    @Description("Combined injection field -> constructor -> setter")
+    @DisplayName("Combined injection")
     void combinedInjection() {
         CombinedInjection combinedInjection = context.getBean(CombinedInjection.class);
         assertNotNull(combinedInjection);
     }
 
     @Test
-    @Description("Properties auto-wiring")
+    @DisplayName("Properties auto-wiring")
     public void autoWiredProps() {
         PropertiesInjection propertiesInjection = context.getBean(PropertiesInjection.class);
         assertNotNull(propertiesInjection);
     }
 
     @Test
-    @Description("Properties auto-wiring field setting")
+    @DisplayName("Properties auto-wiring field setting")
     public void autoWiredPropsField() {
         PropertiesInjection propertiesInjection = context.getBean(PropertiesInjection.class);
         assertNotNull(propertiesInjection.getAutoWiredInjectionTesterClass());
     }
 
     @Test
-    @Description("Static properties auto-wiring null")
+    @DisplayName("Static properties auto-wiring null")
     public void autoWiredStaticProps() {
         StaticPropertiesInjection propertiesInjection = context.getBean(StaticPropertiesInjection.class);
         assertNull(propertiesInjection.getAutoWiredInjectionTesterClass());
     }
 
     @Test
-    @Description("Static properties auto-wiring setter")
-    public void autoWiredStaticPropsSet() {
-        StaticPropertiesInjection propertiesInjection = context.getBean(StaticPropertiesInjection.class);
-        propertiesInjection.setAutoWiredInjectionTesterClass(new AutoWiredInjectionTester());
+    @DisplayName("Static properties auto-wiring with ctor")
+    public void autoWiredStaticPropsCtor() {
+        StaticPropertyCtorInjection propertiesInjection = context.getBean(StaticPropertyCtorInjection.class);
         assertNotNull(propertiesInjection.getAutoWiredInjectionTesterClass());
     }
 
     @Test
-    @Description("Setter auto-wiring")
+    @DisplayName("Setter auto-wiring")
     void autoWiredSetter() {
         SetterInjection setterInjection = context.getBean(SetterInjection.class);
         assertNotNull(setterInjection);
     }
 
     @Test
-    @Description("Setter auto-wiring field setting")
+    @DisplayName("Setter auto-wiring field setting")
     public void autoWiredSetterField() {
         SetterInjection setterInjection = context.getBean(SetterInjection.class);
         assertNotNull(setterInjection.getAutoWiredInjectionTesterClass());
     }
 
     @Test
-    @Description("Constructor auto-wiring")
+    @DisplayName("Constructor auto-wiring")
     void autoWiredConstructor() {
         ConstructorInjection constructorInjection = context.getBean(ConstructorInjection.class);
         assertNotNull(constructorInjection);
     }
 
     @Test
-    @Description("Exception after having more than one @Autowired constructor")
+    @DisplayName("Exception after having more than one @Autowired constructor")
     void autoWiredConstructorInvalidCount() {
         assertThrows(BeanCreationException.class, () -> new AnnotationConfigApplicationContext(ConstructorInjectionTwoAutowired.class));
     }
 
     @Test
-    @Description("Choose correct @Autowired constructor (no params)")
+    @DisplayName("Choose correct @Autowired constructor (no params)")
     public void autoWiredConstructorPriorityNoParams() {
         ConstructorInjectionPriorityNoParams constructorInjectionPriorityNoParams = context.getBean(ConstructorInjectionPriorityNoParams.class);
         AutoWiredInjectionTester autoWiredInjectionTesterClass = constructorInjectionPriorityNoParams.getAutoWiredInjectionTesterClass();
@@ -115,7 +107,7 @@ public class DITest {
     }
 
     @Test
-    @Description("Choose correct @Autowired constructor (AutoWiredInjectionTesterClass param)")
+    @DisplayName("Choose correct @Autowired constructor (AutoWiredInjectionTesterClass param)")
     public void autoWiredConstructorPriorityParams() {
         ConstructorInjectionPriorityParams constructorInjectionPriorityParams = context.getBean(ConstructorInjectionPriorityParams.class);
         AutoWiredInjectionTester autoWiredInjectionTesterClass = constructorInjectionPriorityParams.getAutoWiredInjectionTesterClass();
@@ -123,27 +115,27 @@ public class DITest {
     }
 
     @Test
-    @Description("Exception after having primitive in @Autowired constructor")
+    @DisplayName("Exception after having primitive in @Autowired constructor")
     void autoWiredConstructorPrimitive() {
         assertThrows(BeanCreationException.class, () -> new AnnotationConfigApplicationContext(ConstructorInjectionPrimitive.class));
     }
 
     @Test
-    @Description("Fields set after constructor auto-wiring")
+    @DisplayName("Fields set after constructor auto-wiring")
     public void autoWiredConstructorField() {
         ConstructorInjection constructorInjection = context.getBean(ConstructorInjection.class);
         assertNotNull(constructorInjection.getAutoWiredInjectionTesterClass());
     }
 
     @Test
-    @Description("Bean indication with qualifier.")
+    @DisplayName("Bean indication with qualifier.")
     void qualifierCorrectBeans() {
         MessageService messageService = context.getBean(MessageService.class);
         assertNotNull(messageService);
     }
 
     @Test
-    @Description("Fields set after bean indication with qualifier")
+    @DisplayName("Fields set after bean indication with qualifier")
     void qualifierCorrectBeansFields() {
         MessageService messageService = context.getBean(MessageService.class);
         Message videoMessage = messageService.getVideoMessage();
@@ -156,13 +148,13 @@ public class DITest {
     }
 
     @Test
-    @Description("Exception after not giving @Qualifier(..) annotation to fields with interface type")
+    @DisplayName("Exception after not giving @Qualifier(..) annotation to fields with interface type")
     void qualifierExceptionMultipleBeans() {
         assertThrows(BeanCreationException.class, () -> new AnnotationConfigApplicationContext(MessageServiceInvalid.class));
     }
 
     @Test
-    @Description("Context initialization from class @Configuration")
+    @DisplayName("Context initialization from class @Configuration")
     void configurationContextInitialization() {
         AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(Config.class);
         assertNotNull(context);
@@ -170,7 +162,7 @@ public class DITest {
     }
 
     @Test
-    @Description("Context initialization from class with @Configuration getBean from Config class")
+    @DisplayName("Context initialization from class with @Configuration getBean from Config class")
     void configurationContextInitializationReturnCorrect() {
         AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(Config.class);
         A aClass = context.getBean(A.class);
@@ -179,7 +171,7 @@ public class DITest {
     }
 
     @Test
-    @Description("Context initialization from two classes with @Configuration")
+    @DisplayName("Context initialization from two classes with @Configuration")
     void contextTwoConfigsInit() {
         AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(Config.class, ConfigDoubleTwo.class);
         assertNotNull(context);
@@ -187,34 +179,16 @@ public class DITest {
     }
 
     @Test
-    @Description("Context initialization from two classes with @Configuration getBean returns bean from secondly added Config class")
+    @DisplayName("Context initialization from two classes with @Configuration getBean returns bean from secondly added Config class")
     void contextTwoConfigsDifReturns() {
         AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(ConfigDoubleOne.class, ConfigDoubleTwo.class);
-        Integer bean = context.getBean(int.class);
+        int bean = context.getBean(int.class);
         assertEquals(bean, 11);
         context.close();
     }
 
     @Test
-    @Description("Configuration with 'singleton' return same instance")
-    void contextSingletonConfig() {
-        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(ConfigSingleton.class);
-        A aClass = context.getBean(A.class);
-        A aClass2 = context.getBean(A.class);
-        assertEquals(aClass, aClass2);
-    }
-
-    @Test
-    @Description("Configuration with 'prototype' return different instances")
-    void contextPrototypeConfig() {
-        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(ConfigPrototype.class);
-        A aClass = context.getBean(A.class);
-        A aClass2 = context.getBean(A.class);
-        assertNotEquals(aClass, aClass2);
-    }
-
-    @Test
-    @Description("Context initialization with class parameters")
+    @DisplayName("Context initialization with class parameters")
     void classesContextInitialization() {
         AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(A.class, B.class);
         assertNotNull(context);
@@ -222,7 +196,7 @@ public class DITest {
     }
 
     @Test
-    @Description("Context initialization with class parameters storing beans")
+    @DisplayName("Context initialization with class parameters storing beans")
     void classesContextInitializationReturnCorrect() {
         AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(A.class, B.class);
         assertNotNull(context);
@@ -232,13 +206,13 @@ public class DITest {
     }
 
     @Test
-    @Description("Exception thrown after not adding @Component annotation to class")
+    @DisplayName("Exception thrown after not adding @Component annotation to class")
     void failedInjectionNoComponent() {
         assertThrows(NoSuchBeanDefinitionException.class, () -> context.getBean(FailedInjection.class));
     }
 
     @Test
-    @Description("Values from properties file")
+    @DisplayName("Values from properties file")
     void propertyValues() throws IOException {
         Properties properties = new Properties();
         properties.load(new FileInputStream("src/test/java/app/props.properties"));
@@ -255,5 +229,89 @@ public class DITest {
         Integer bean = context.getBean(Integer.class);
         assertEquals(bean, 13);
         context.close();
+    }
+
+    @Test
+    @DisplayName("Bean lifecycle 'InitializingBean'")
+    void beanLifecycleInit() {
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(BeanLifeCycle.class);
+        BeanLifeCycle bean = context.getBean(BeanLifeCycle.class);
+        assertNotNull(bean);
+        assertTrue(bean.initialized);
+        context.close();
+    }
+
+    @Test
+    @DisplayName("Bean lifecycle 'DisposableBean'")
+    void beanLifecycleDisp() {
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(BeanLifeCycle.class);
+        BeanLifeCycle bean = context.getBean(BeanLifeCycle.class);
+        assertNotNull(bean);
+
+        assertFalse(bean.destroyed);
+        context.close();
+        assertTrue(bean.destroyed);
+    }
+
+    @Test
+    @DisplayName("Shutdown hook message changing")
+    void shutdownHook() {
+        String[] message = new String[]{"NOMSG"};
+        Thread printingHook = new Thread(() -> {
+            System.out.println("In the middle of a shutdown");
+            message[0] = "SHUT-DOWNING";
+        });
+        Runtime.getRuntime().addShutdownHook(printingHook);
+        Thread checkMsg = new Thread(() -> assertEquals("SHUT-DOWNING", message[0]));
+        Runtime.getRuntime().addShutdownHook(checkMsg);
+
+        assertEquals("NOMSG", message[0]);
+    }
+
+
+    @Test
+    @DisplayName("Bean post process bean instance init")
+    void beanPostProcessMatch() {
+        AnnotationConfigApplicationContext context =
+                new AnnotationConfigApplicationContext(BeanPostProcess.class, TextMessage.class);
+        BeanPostProcess bean = context.getBean(BeanPostProcess.class);
+        assertTrue(bean.messageBean);
+    }
+
+    @Test
+    @DisplayName("Bean post process bean instance init before new init")
+    void beanPostProcess() {
+        AnnotationConfigApplicationContext context =
+                new AnnotationConfigApplicationContext(BeanPostProcess.class, TextMessage.class, A.class, B.class);
+        BeanPostProcess bean = context.getBean(BeanPostProcess.class);
+        assertFalse(bean.messageBean);
+    }
+
+    @Test
+    @DisplayName("Bean factory post process bean property set from properties file")
+    void beanFactoryPostProcess() {
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(BeanFactoryPostProcess.class);
+        MyBean myBean = context.getBean(MyBean.class);
+        assertEquals("Nikolay", myBean.getName());
+        assertEquals("Todorov", myBean.getSurname());
+        assertEquals(23, myBean.getAge());
+    }
+
+    @Test
+    @DisplayName("Bean scope 'singleton' return same instance")
+    void contextSingleton() {
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(ConfigSingleton.class);
+        A aClass = context.getBean(A.class);
+        A aClass2 = context.getBean(A.class);
+        assertEquals(aClass, aClass2);
+    }
+
+    @Test
+    @DisplayName("Bean scope 'prototype' return different instances")
+    void contextPrototype() {
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(ConfigPrototype.class);
+        A aClass = context.getBean(A.class);
+        A aClass2 = context.getBean(A.class);
+        assertNotEquals(aClass, aClass2);
     }
 }
