@@ -18,5 +18,4 @@ public class BeanLifeCycle implements InitializingBean, DisposableBean {
         System.out.println("Context destroyed...");
         destroyed = true;
     }
-
 }

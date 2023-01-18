@@ -16,10 +16,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.scheduling.annotation.Async;
 
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Properties;
+import java.util.concurrent.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -254,20 +256,15 @@ public class DITest {
     }
 
     @Test
-    @DisplayName("Shutdown hook message changing")
-    void shutdownHook() {
-        String[] message = new String[]{"NOMSG"};
-        Thread printingHook = new Thread(() -> {
-            System.out.println("In the middle of a shutdown");
-            message[0] = "SHUT-DOWNING";
-        });
-        Runtime.getRuntime().addShutdownHook(printingHook);
-        Thread checkMsg = new Thread(() -> assertEquals("SHUT-DOWNING", message[0]));
-        Runtime.getRuntime().addShutdownHook(checkMsg);
-
-        assertEquals("NOMSG", message[0]);
+    @DisplayName("Context shutdown hook")
+    void contextShutdownHook() {
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(BeanLifeCycle.class);
+        context.registerShutdownHook();
+        BeanLifeCycle bean = context.getBean(BeanLifeCycle.class);
+        assertFalse(bean.destroyed);
+        context.close();
+        assertTrue(bean.destroyed);
     }
-
 
     @Test
     @DisplayName("Bean post process bean instance init")
@@ -313,5 +310,82 @@ public class DITest {
         A aClass = context.getBean(A.class);
         A aClass2 = context.getBean(A.class);
         assertNotEquals(aClass, aClass2);
+    }
+
+    @Test
+    @DisplayName("Send event with publisher and receive with interface listener")
+    void sendGetEventInterface() {
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(CustomEventPublisher.class, CustomEventListenerInterface.class);
+        CustomEventPublisher publisher = context.getBean(CustomEventPublisher.class);
+        String eventMessage = "Hello I am event";
+        publisher.publishCustomEvent(eventMessage);
+        CustomEventListenerInterface listener = context.getBean(CustomEventListenerInterface.class);
+        assertEquals(eventMessage, listener.eventMessage);
+    }
+
+    @Test
+    @DisplayName("Send event with publisher and receive with annotation listener")
+    void sendGetEventAnnotation() {
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(CustomEventPublisher.class, CustomEventListenerAnnotation.class);
+        CustomEventPublisher publisher = context.getBean(CustomEventPublisher.class);
+        String eventMessage = "Hello I am event";
+        publisher.publishCustomEvent(eventMessage);
+        CustomEventListenerAnnotation listener = context.getBean(CustomEventListenerAnnotation.class);
+        assertEquals(eventMessage, listener.eventMessage);
+    }
+
+    @Test
+    @Async
+    void asynchronizedEvent() throws ExecutionException, InterruptedException {
+        ExecutorService executorService = Executors.newSingleThreadExecutor();
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(
+                CustomEventPublisher.class, CustomEventListenerAnnotation.class, AsyncEventConfig.class);
+
+        CustomEventPublisher publisher = context.getBean(CustomEventPublisher.class);
+        CustomEventListenerAnnotation listener = context.getBean(CustomEventListenerAnnotation.class);
+
+        String eventMessage = "Hello I am event";
+        executorService.submit(() -> publisher.publishCustomEvent(eventMessage));
+        assertEquals(eventMessage, listener.eventMessage);
+    }
+
+    @Test
+    @DisplayName("ContextRefreshedEvent")
+    void contextRefreshedEvent() {
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext();
+        context.registerBean(CustomEventPublisher.class);
+        context.registerBean(B.class);
+        context.registerBean(ContextRefreshedEventListener.class);
+        context.refresh();
+
+        ContextRefreshedEventListener listener = context.getBean(ContextRefreshedEventListener.class);
+        assertTrue(listener.refreshed);
+    }
+
+    @Test
+    @DisplayName("ContextStartedEvent")
+    void contextStartedEvent() {
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext();
+        context.registerBean(CustomEventPublisher.class);
+        context.registerBean(B.class);
+        context.registerBean(ContextStartedEventListener.class);
+        context.refresh();
+
+        ContextStartedEventListener listener = context.getBean(ContextStartedEventListener.class);
+        assertFalse(listener.refreshed);
+        context.start();
+        assertTrue(listener.refreshed);
+    }
+
+    @Test
+    void chainEvents() {
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(
+                CustomEventPublisher.class, ChainEventListener.class, CustomEventListener.class);
+        CustomEventPublisher publisher = context.getBean(CustomEventPublisher.class);
+        assertNotNull(publisher);
+        String eventName = "ChainEvent";
+        publisher.publishCustomEvent(eventName);
+        ChainEventListener listener = context.getBean(ChainEventListener.class);
+        assertEquals("Received chain event with message - " + eventName, listener.eventMessage);
     }
 }
