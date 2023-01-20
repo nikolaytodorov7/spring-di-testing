@@ -1,5 +1,8 @@
 package app;
 
+import app.asyncs.AsyncMethods;
+import app.asyncsConfig.AsyncAppConfig;
+import app.asyncsConfig.AsyncMethodConfig;
 import app.classes.*;
 import app.configs.*;
 import app.contextdep.MyBean;
@@ -9,6 +12,9 @@ import app.contextdep.BeanPostProcess;
 import app.invalid.ConstructorInjectionPrimitive;
 import app.invalid.ConstructorInjectionTwoAutowired;
 import app.invalid.MessageServiceInvalid;
+import app.values.ConstructorInjectionVal;
+import app.values.SetterInjectionVal;
+import app.values.ValueAnnotationTest;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -16,7 +22,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
-import org.springframework.scheduling.annotation.Async;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -217,7 +222,7 @@ public class DITest {
     @DisplayName("Values from properties file")
     void propertyValues() throws IOException {
         Properties properties = new Properties();
-        properties.load(new FileInputStream("src/test/java/app/props.properties"));
+        properties.load(new FileInputStream("src/test/resources/props.properties"));
         AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext();
         properties.forEach((k, v) -> {
             try {
@@ -335,7 +340,6 @@ public class DITest {
     }
 
     @Test
-    @Async
     void asynchronizedEvent() throws ExecutionException, InterruptedException {
         ExecutorService executorService = Executors.newSingleThreadExecutor();
         AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(
@@ -346,6 +350,7 @@ public class DITest {
 
         String eventMessage = "Hello I am event";
         executorService.submit(() -> publisher.publishCustomEvent(eventMessage));
+        Thread.sleep(5000);
         assertEquals(eventMessage, listener.eventMessage);
     }
 
@@ -387,5 +392,138 @@ public class DITest {
         publisher.publishCustomEvent(eventName);
         ChainEventListener listener = context.getBean(ChainEventListener.class);
         assertEquals("Received chain event with message - " + eventName, listener.eventMessage);
+    }
+
+    @Test
+    @DisplayName("@Value annotation with primitive type")
+    void primitiveValueSet() {
+        System.setProperty("priority", "TEST");
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext("app/values");
+        ValueAnnotationTest valClass = context.getBean(ValueAnnotationTest.class);
+        assertEquals(5, valClass.number);
+        assertEquals(4, valClass.defaultNum);
+    }
+
+    @Test
+    @DisplayName("@Value with system property")
+    void valueSetFromSystemProp() {
+        System.setProperty("prop", "test");
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext("app/values");
+        ValueAnnotationTest valClass = context.getBean(ValueAnnotationTest.class);
+        assertEquals("test", valClass.propVal);
+    }
+
+    @Test
+    @DisplayName("@Value with wrong system property and default")
+    void valueDefaultWithoutSystemProp() {
+        System.setProperty("propa", "test");
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext("app/values");
+        ValueAnnotationTest valClass = context.getBean(ValueAnnotationTest.class);
+        assertEquals("defaultVal", valClass.propValDefault);
+    }
+
+    @Test
+    @DisplayName("@Value without system property")
+    void valueNullWithoutSystemProp() {
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext("app/values");
+        ValueAnnotationTest valClass = context.getBean(ValueAnnotationTest.class);
+        assertNull(valClass.propVal);
+    }
+
+    @Test
+    @DisplayName("@Value from other class property")
+    void valueFromOtherClassProp() {
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext("app/values");
+        ValueAnnotationTest valClass = context.getBean(ValueAnnotationTest.class);
+        assertEquals("emptyClassVal", valClass.emptyClassVal);
+    }
+
+    @Test
+    @DisplayName("@Value from property file")
+    void valueFromPropertySource() {
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext("app/values");
+        ValueAnnotationTest valClass = context.getBean(ValueAnnotationTest.class);
+        assertEquals("Nikolay", valClass.name);
+    }
+
+    @Test
+    @DisplayName("@Value in constructor inject")
+    void valueConstructor() {
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext("app/values");
+        ConstructorInjectionVal constructorInjection = context.getBean(ConstructorInjectionVal.class);
+        assertEquals("Nikolay", constructorInjection.name);
+    }
+
+    @Test
+    @DisplayName("@Value in parameter inject")
+    void valueParam() {
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext("app/values");
+        SetterInjectionVal setterInjection = context.getBean(SetterInjectionVal.class);
+        assertEquals("Todorov", setterInjection.surname);
+    }
+
+    @Test
+    @DisplayName("@Value in method inject")
+    void valueMethod() {
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext("app/values");
+        SetterInjectionVal setterInjection = context.getBean(SetterInjectionVal.class);
+        assertEquals(23, setterInjection.age);
+    }
+
+    @Test
+    @DisplayName("Async method call with void return type")
+    void asyncMethodVoid() {
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(AsyncMethods.class);
+        AsyncMethods asyncMethods = context.getBean(AsyncMethods.class);
+        long start = System.currentTimeMillis();
+        asyncMethods.asyncMethodWithVoidReturnType();
+        long end = System.currentTimeMillis();
+        assertTrue(end - start > 5000);
+    }
+
+    @Test
+    @DisplayName("Async method call with return type")
+    void asyncMethod() throws ExecutionException, InterruptedException {
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(AsyncMethods.class);
+        AsyncMethods asyncMethods = context.getBean(AsyncMethods.class);
+        String str = "test";
+        long start = System.currentTimeMillis();
+        asyncMethods.asyncMethodWithReturnType(str);
+        long end = System.currentTimeMillis();
+        assertTrue(end - start > 5000);
+    }
+
+    @Test
+    @DisplayName("Async Future methods - exceptions")
+    void asyncException() throws InterruptedException {
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(AsyncMethods.class, AsyncMethodConfig.class);
+        AsyncMethods asyncMethods = context.getBean(AsyncMethods.class);
+        Future<String> future = asyncMethods.asyncMethodException();
+        assertThrows(ExecutionException.class, future::get);
+    }
+
+    @Test
+    @DisplayName("Async custom executor")
+    void asyncCustomExecutor() throws InterruptedException {
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(AsyncMethods.class, AsyncAppConfig.class);
+        AsyncMethods asyncMethods = context.getBean(AsyncMethods.class);
+        AsyncAppConfig config = context.getBean(AsyncAppConfig.class);
+
+        assertFalse(config.isUsingCustomExecutor);
+        asyncMethods.asyncMethodException();
+        assertTrue(config.isUsingCustomExecutor);
+    }
+
+    @Test
+    @DisplayName("Async exception with custom executor")
+    void asyncExceptionCustomExecutor() throws InterruptedException {
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(AsyncMethods.class, AsyncAppConfig.class);
+        AsyncMethods asyncMethods = context.getBean(AsyncMethods.class);
+        AsyncAppConfig config = context.getBean(AsyncAppConfig.class);
+
+        assertFalse(config.isUsingCustomExecutor);
+        Future<String> future = asyncMethods.asyncMethodException();
+        assertTrue(config.isUsingCustomExecutor);
+        assertThrows(ExecutionException.class, future::get);
     }
 }

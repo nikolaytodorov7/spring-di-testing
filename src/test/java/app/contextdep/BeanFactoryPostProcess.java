@@ -23,7 +23,7 @@ public class BeanFactoryPostProcess implements BeanFactoryPostProcessor {
 
     private Properties loadProperties() {
         Properties properties = new Properties();
-        String path = "src/test/java/app/factory.properties"; //todo remove hardcode path
+        String path = "src/test/resources/factory.properties"; //todo remove hardcode path
         try {
             properties.load(new FileInputStream(path));
         } catch (IOException e) {
